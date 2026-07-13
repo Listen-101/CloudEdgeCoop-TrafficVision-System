@@ -1,0 +1,70 @@
+<scroll-view scroll-y class="page-scroll">
+<view class="container">
+  <!-- 导航栏 -->
+  <view class="nav-bar">
+    <button class="nav-btn" bindtap="navigateToSettings">设置</button>
+    <button class="nav-btn" bindtap="navigateToLogs">日志</button>
+    <button class="nav-btn" bindtap="navigateToHistory">历史</button>
+  </view>
+
+  <!-- 状态栏 -->
+  <view class="status-bar">
+    <view class="status-item">
+      <text class="label">连接状态</text>
+      <text class="value {{connectionStatus}}">{{connectionStatus === 'connected' ? '已连接' : '未连接'}}</text>
+    </view>
+    <view class="status-item">
+      <text class="label">采集状态</text>
+      <text class="value {{captureStatus}}">{{captureStatus === 'running' ? '采集中' : '已停止'}}</text>
+    </view>
+    <view class="status-item">
+      <text class="label">FPS</text>
+      <text class="value">{{fps}}</text>
+    </view>
+    <view class="status-item">
+      <text class="label">网络</text>
+      <text class="value">{{networkType}}</text>
+    </view>
+  </view>
+
+  <!-- 统计栏 -->
+  <view class="stats-bar">
+    <view class="stat-item">
+      <text class="stat-label">上传帧数</text>
+      <text class="stat-value">{{uploadCount}}</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-label">上传速度</text>
+      <text class="stat-value">{{uploadSpeed}}</text>
+    </view>
+  </view>
+
+  <!-- 摄像头预览区 -->
+  <view class="camera-area">
+    <camera device-position="back" flash="off" binderror="cameraError" style="width: 100%; height: 100%;"></camera>
+    <view wx:if="{{captureStatus === 'stopped'}}" class="camera-overlay">
+      <text class="overlay-text">点击下方按钮开始采集</text>
+    </view>
+  </view>
+
+  <!-- 控制按钮 -->
+  <view class="control-bar">
+    <button class="capture-btn {{captureStatus}}" bindtap="toggleCapture">
+      {{captureStatus === 'running' ? '停止采集' : '开始采集'}}
+    </button>
+  </view>
+
+  <!-- 最近日志 -->
+  <view class="recent-logs">
+    <text class="section-title">最近日志</text>
+    <scroll-view scroll-y class="log-list">
+      <view wx:for="{{logs}}" wx:key="index" class="log-item">
+        <text class="log-time">{{item.time}}</text>
+        <text class="log-type {{item.type}}">{{item.type}}</text>
+        <text class="log-content">{{item.content}}</text>
+      </view>
+      <view wx:if="{{logs.length === 0}}" class="log-empty">暂无日志</view>
+    </scroll-view>
+  </view>
+</view>
+</scroll-view>

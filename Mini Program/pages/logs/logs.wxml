@@ -1,0 +1,23 @@
+<view class="container">
+  <!-- 筛选栏 -->
+  <view class="filter-bar">
+    <view wx:for="{{logTypes}}" wx:key="*this"
+          class="filter-tag {{selectedType === item ? 'active' : ''}}"
+          data-type="{{item}}" bindtap="filterByType">
+      {{item}}
+    </view>
+    <view class="clear-btn" bindtap="clearLogs">清除</view>
+  </view>
+
+  <!-- 日志列表 -->
+  <scroll-view scroll-y class="log-list">
+    <view wx:for="{{logs}}" wx:key="index" class="log-item">
+      <view class="log-header">
+        <text class="log-time">{{item.time}}</text>
+        <text class="log-type {{item.type}}">{{item.type}}</text>
+      </view>
+      <text class="log-content">{{item.content}}</text>
+    </view>
+    <view wx:if="{{logs.length === 0}}" class="log-empty">暂无日志记录</view>
+  </scroll-view>
+</view>

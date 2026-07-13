@@ -1,0 +1,36 @@
+# Python environment (too large)
+Python312/
+
+# Algorithm SDK (463MB, download separately)
+traffic_algorithm_sdk_backend_v2_2026-07-13/
+
+# Model weights (download separately)
+ai_bridge/yolov8n.pt
+
+# Log files
+*.log
+
+# Misc
+project_text.docx
+
+# Claude internal
+.claude/
+
+# Java build
+project_backend/target/
+project_backend/.idea/
+project_backend/*.iml
+
+# Test images
+project_backend/images/
+test_frame.jpg
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+nul

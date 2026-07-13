@@ -1,0 +1,44 @@
+<view class="container">
+  <!-- 服务器配置 -->
+  <view class="section">
+    <text class="section-title">服务器配置</text>
+    <view class="form-item">
+      <text class="form-label">服务器地址</text>
+      <input class="form-input" value="{{serverHost}}" bindblur="onServerHostChange" placeholder="输入服务器地址" />
+    </view>
+    <view class="form-item">
+      <text class="form-label">端口</text>
+      <input class="form-input" type="number" value="{{serverPort}}" bindblur="onServerPortChange" placeholder="8080" />
+    </view>
+    <view class="form-item">
+      <button class="test-btn" bindtap="testConnection">测试连接</button>
+    </view>
+  </view>
+
+  <!-- 采集配置 -->
+  <view class="section">
+    <text class="section-title">采集配置</text>
+    <view class="form-item">
+      <text class="form-label">采集帧率 (FPS)</text>
+      <input class="form-input" type="number" value="{{captureFps}}" bindblur="onCaptureFpsChange" placeholder="10" />
+    </view>
+    <view class="form-item">
+      <text class="form-label">图片质量 (%)</text>
+      <input class="form-input" type="number" value="{{imageQuality}}" bindblur="onImageQualityChange" placeholder="80" />
+    </view>
+  </view>
+
+  <!-- 连接配置 -->
+  <view class="section">
+    <text class="section-title">连接配置</text>
+    <view class="form-item switch-item">
+      <text class="form-label">自动重连</text>
+      <switch checked="{{autoReconnect}}" bindchange="onAutoReconnectChange" color="#07c160" />
+    </view>
+  </view>
+
+  <!-- 重置 -->
+  <view class="section">
+    <button class="reset-btn" bindtap="resetSettings">恢复默认设置</button>
+  </view>
+</view>

@@ -1,0 +1,15 @@
+<view class="container">
+  <view wx:if="{{records.length === 0 && !loading}}" class="empty-tip">暂无历史记录</view>
+
+  <view wx:for="{{records}}" wx:key="id" class="record-item" data-url="{{item.imageUrl}}" bindtap="previewImage">
+    <image class="record-thumb" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+    <view class="record-info">
+      <text class="record-device">{{item.deviceId}}</text>
+      <text class="record-time">{{item.createTime}}</text>
+      <text class="record-size">{{item.fileSize || 0}} KB</text>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-tip">加载中...</view>
+  <view wx:elif="{{!hasMore && records.length > 0}}" class="loading-tip">没有更多了</view>
+</view>

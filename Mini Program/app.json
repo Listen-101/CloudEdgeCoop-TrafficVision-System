@@ -1,0 +1,21 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/settings/settings",
+    "pages/logs/logs",
+    "pages/history/history"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "图像采集系统",
+    "navigationBarBackgroundColor": "#ffffff"
+  },
+  "requiredBackgroundModes": [],
+  "permission": {
+    "scope.camera": {
+      "desc": "用于图像采集识别"
+    }
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}
