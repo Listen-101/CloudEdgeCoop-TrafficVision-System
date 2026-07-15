@@ -27,6 +27,142 @@ function safeNumber(value, fallback = 0) {
   return Number.isFinite(number) ? number : fallback
 }
 
+const HEATMAP_WIDTH = 800
+const HEATMAP_HEIGHT = 450
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function parseResultData(value) {
+  if (!value) return {}
+  if (typeof value === 'object') return value
+  if (typeof value !== 'string') return {}
+
+  try {
+    return JSON.parse(value)
+  } catch (error) {
+    return {}
+  }
+}
+
+function scaleBox(box) {
+  const allNormalized = [box.x, box.y, box.w, box.h].every(value => value >= 0 && value <= 1)
+  const x = allNormalized ? box.x * HEATMAP_WIDTH : box.x
+  const y = allNormalized ? box.y * HEATMAP_HEIGHT : box.y
+  const w = allNormalized ? box.w * HEATMAP_WIDTH : box.w
+  const h = allNormalized ? box.h * HEATMAP_HEIGHT : box.h
+
+  return {
+    x: clamp(x, 0, HEATMAP_WIDTH),
+    y: clamp(y, 0, HEATMAP_HEIGHT),
+    w: clamp(w, 1, HEATMAP_WIDTH),
+    h: clamp(h, 1, HEATMAP_HEIGHT)
+  }
+}
+
+function boxFromArray(values, source = {}) {
+  if (!Array.isArray(values) || values.length < 4) return null
+
+  const raw = values.slice(0, 4).map(value => Number(value))
+  if (raw.some(value => !Number.isFinite(value))) return null
+
+  const [x1, y1, third, fourth] = raw
+  const format = safeText(source.bboxFormat || source.bbox_format || source.boxFormat || source.box_format, '').toLowerCase()
+  const isXyxy = format.includes('xyxy') || (!format && third > x1 && fourth > y1)
+
+  if (isXyxy) {
+    return scaleBox({ x: x1, y: y1, w: third - x1, h: fourth - y1 })
+  }
+  return scaleBox({ x: x1, y: y1, w: third, h: fourth })
+}
+
+function boxFromObject(source = {}) {
+  if (!source || typeof source !== 'object') return null
+
+  const arrayBox = source.bbox || source.box || source.boundingBox || source.bounding_box || source.rect || source.rectangle
+  const fromArray = boxFromArray(arrayBox, source)
+  if (fromArray) return fromArray
+
+  const x = source.x ?? source.left ?? source.x1
+  const y = source.y ?? source.top ?? source.y1
+  const width = source.width ?? source.w
+  const height = source.height ?? source.h
+  if (x !== undefined && y !== undefined && width !== undefined && height !== undefined) {
+    return scaleBox({ x: Number(x), y: Number(y), w: Number(width), h: Number(height) })
+  }
+
+  const right = source.right ?? source.x2
+  const bottom = source.bottom ?? source.y2
+  if (x !== undefined && y !== undefined && right !== undefined && bottom !== undefined) {
+    return scaleBox({ x: Number(x), y: Number(y), w: Number(right) - Number(x), h: Number(bottom) - Number(y) })
+  }
+
+  return null
+}
+
+function normalizeHeatmapVehicle(record = {}, frame = {}, index = 0) {
+  const parsed = parseResultData(record.resultData)
+  const box = boxFromObject(record) || boxFromObject(parsed)
+  if (!box) return null
+
+  const confidence = safeNumber(record.confidence ?? parsed.confidence ?? parsed.text_confidence, 0)
+  const areaRatio = clamp((box.w * box.h) / (HEATMAP_WIDTH * HEATMAP_HEIGHT), 0.02, 0.18)
+  const radius = clamp(46 + areaRatio * 420 + confidence * 24, 54, 126)
+
+  return {
+    id: record.id || parsed.track_id || parsed.trackId || `${frame.frameId || 'frame'}-${index}`,
+    x: Math.round(box.x),
+    y: Math.round(box.y),
+    w: Math.round(box.w),
+    h: Math.round(box.h),
+    cx: Math.round(box.x + box.w / 2),
+    cy: Math.round(box.y + box.h / 2),
+    radius: Math.round(radius),
+    intensity: clamp(0.34 + areaRatio * 2.4 + confidence * 0.28, 0.38, 0.86),
+    vehicleType: safeText(record.vehicleType || parsed.class_name || parsed.label, '车辆'),
+    plateNumber: safeText(record.plateNumber || parsed.text, ''),
+    confidence
+  }
+}
+
+function buildCurrentFrameHeatmap(frame = {}, records = []) {
+  const vehicles = records
+    .map((record, index) => normalizeHeatmapVehicle(record, frame, index))
+    .filter(Boolean)
+
+  if (vehicles.length === 0) return null
+
+  const coverage = vehicles.reduce((sum, vehicle) => sum + vehicle.w * vehicle.h, 0) / (HEATMAP_WIDTH * HEATMAP_HEIGHT)
+  const densityScore = clamp(Math.round(vehicles.length * 12 + coverage * 260), 0, 100)
+  const densityLevel = densityScore >= 70 ? '拥堵' : densityScore >= 38 ? '缓行' : '畅通'
+
+  return {
+    frameId: frame.frameId || records[0]?.frameId || null,
+    deviceId: safeText(frame.deviceId || records[0]?.deviceId, DEVICE_ID),
+    fileName: safeText(frame.fileName, ''),
+    updatedAt: nowTime(),
+    densityScore,
+    densityLevel,
+    vehicles
+  }
+}
+
+function normalizeRecognitionRecord(record = {}, frame = {}) {
+  const parsed = parseResultData(record.resultData)
+  return {
+    deviceId: safeText(record.deviceId || frame.deviceId, DEVICE_ID),
+    frameId: record.frameId || frame.frameId || null,
+    plateNumber: safeText(record.plateNumber || parsed.text, '未知车牌'),
+    vehicleType: safeText(record.vehicleType || parsed.class_name || parsed.label, '未知车型'),
+    alertType: safeText(record.alertType, null),
+    confidence: safeNumber(record.confidence ?? parsed.confidence ?? parsed.text_confidence, 0),
+    resultData: record.resultData,
+    bbox: record.bbox || parsed.bbox,
+    createTime: safeText(record.createTime, nowTime())
+  }
+}
+
 function normalizeDevice(data = {}) {
   return {
     id: data.id || 'current-device',
@@ -73,6 +209,12 @@ export const store = reactive({
 
   // 识别结果列表
   recognitionResults: [...MOCK_DATA.recognitionResults],
+
+  // 当前帧车辆密度热力图
+  currentFrameHeatmap: {
+    ...MOCK_DATA.currentFrameHeatmap,
+    vehicles: [...MOCK_DATA.currentFrameHeatmap.vehicles]
+  },
 
   // 告警列表
   alerts: [...MOCK_DATA.alerts],
@@ -153,6 +295,10 @@ function fallbackToMockMode() {
   store.devices = [...MOCK_DATA.devices]
   store.statistics = { ...MOCK_DATA.statistics }
   store.recognitionResults = [...MOCK_DATA.recognitionResults]
+  store.currentFrameHeatmap = {
+    ...MOCK_DATA.currentFrameHeatmap,
+    vehicles: [...MOCK_DATA.currentFrameHeatmap.vehicles]
+  }
   store.alerts = [...MOCK_DATA.alerts]
   store.eventStream = [...MOCK_DATA.eventStream]
 
@@ -215,41 +361,51 @@ export async function refreshAllData() {
 }
 
 function handleRecognitionMessage(data = {}) {
-  const result = {
-    deviceId: safeText(data.deviceId, DEVICE_ID),
-    frameId: data.frameId || null,
-    plateNumber: safeText(data.plateNumber, '未知车牌'),
-    vehicleType: safeText(data.vehicleType, '未知车型'),
-    alertType: safeText(data.alertType, null),
-    confidence: safeNumber(data.confidence, 0),
-    createTime: safeText(data.createTime, nowTime())
-  }
+  const records = Array.isArray(data.results) ? data.results : [data]
+  const normalizedRecords = records.map(record => normalizeRecognitionRecord(record, data))
 
-  store.recognitionResults.unshift(result)
-  if (store.recognitionResults.length > 50) {
-    store.recognitionResults.pop()
-  }
+  normalizedRecords.reverse().forEach(result => {
+    store.recognitionResults.unshift(result)
 
-  const hasAlert = result.alertType && result.alertType !== '正常'
-  addEventToStream({
-    time: nowTime(),
-    type: hasAlert ? 'warning' : 'info',
-    title: hasAlert ? result.alertType : '车辆识别',
-    desc: `${result.plateNumber} - ${result.vehicleType}`,
-    scene: '实时识别'
+    const hasAlert = result.alertType && result.alertType !== '正常'
+    addEventToStream({
+      time: nowTime(),
+      type: hasAlert ? 'warning' : 'info',
+      title: hasAlert ? result.alertType : '车辆识别',
+      desc: `${result.plateNumber} - ${result.vehicleType}`,
+      scene: '实时识别'
+    })
+
+    if (hasAlert) {
+      store.alerts.unshift({
+        type: result.alertType,
+        scene: '实时监控',
+        level: 'alert',
+        status: 'active',
+        time: nowTime(),
+        plateNumber: result.plateNumber
+      })
+      if (store.alerts.length > 50) {
+        store.alerts.pop()
+      }
+    }
   })
 
-  if (hasAlert) {
-    store.alerts.unshift({
-      type: result.alertType,
-      scene: '实时监控',
-      level: 'alert',
-      status: 'active',
-      time: nowTime(),
-      plateNumber: result.plateNumber
-    })
-    if (store.alerts.length > 50) {
-      store.alerts.pop()
+  if (store.recognitionResults.length > 50) {
+    store.recognitionResults.splice(50)
+  }
+
+  const heatmap = buildCurrentFrameHeatmap(data, records)
+  if (heatmap) {
+    store.currentFrameHeatmap = heatmap
+    if (heatmap.densityLevel !== '畅通') {
+      addEventToStream({
+        time: heatmap.updatedAt,
+        type: 'warning',
+        title: '当前帧密度偏高',
+        desc: `${heatmap.deviceId} ${heatmap.vehicles.length} 辆 / ${heatmap.densityLevel}`,
+        scene: '拥堵监测'
+      })
     }
   }
 }

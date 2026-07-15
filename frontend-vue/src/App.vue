@@ -23,6 +23,14 @@ const metrics = computed(() => [
 const devices = computed(() => store.devices)
 const alerts = computed(() => store.alerts)
 const recognitionResults = computed(() => store.recognitionResults.slice(0, 10))
+const currentFrameHeatmap = computed(() => store.currentFrameHeatmap)
+const heatmapVehicles = computed(() => store.currentFrameHeatmap?.vehicles || [])
+const heatmapStatusClass = computed(() => {
+  const level = store.currentFrameHeatmap?.densityLevel
+  if (level === '拥堵') return 'danger'
+  if (level === '缓行') return 'warn'
+  return 'safe'
+})
 
 // 系统状态
 const systemStatus = computed(() => store.systemStatus)
@@ -148,46 +156,80 @@ const handleRefresh = () => {
         </div>
 
         <!-- 监控墙 -->
-        <div class="monitor-wall">
-          <div class="monitor-screen" data-hud="CAM-01 / AI VISION / 24FPS / CONF 98.6%">
-            <div class="monitor-label">闸机监控 - 实时画面</div>
-            <svg viewBox="0 0 800 450" style="width: 100%; height: 100%;">
-              <rect fill="#000" width="800" height="450"/>
-              <line x1="200" y1="0" x2="200" y2="450" stroke="#A9BDD8" stroke-width="2" opacity="0.2" stroke-dasharray="20 10"/>
-              <line x1="400" y1="0" x2="400" y2="450" stroke="#A9BDD8" stroke-width="3" opacity="0.3"/>
-              <line x1="600" y1="0" x2="600" y2="450" stroke="#A9BDD8" stroke-width="2" opacity="0.2" stroke-dasharray="20 10"/>
-              <rect x="180" y="150" width="80" height="50" rx="8" fill="#1E40AF" opacity="0.8" stroke="#2F80FF" stroke-width="2"/>
-              <text x="220" y="180" text-anchor="middle" fill="#2F80FF" font-size="11" font-family="monospace" font-weight="bold">CAR-A</text>
-              <rect x="380" y="280" width="80" height="50" rx="8" fill="#1E40AF" opacity="0.8" stroke="#22D3EE" stroke-width="2"/>
-              <text x="420" y="310" text-anchor="middle" fill="#22D3EE" font-size="11" font-family="monospace" font-weight="bold">CAR-B</text>
-            </svg>
-          </div>
-
-          <div class="monitor-screen" data-hud="CAM-02 / FLOW GRID / 23FPS / LOAD 61%">
-            <div class="monitor-label">拥堵监测 - 实时画面</div>
-            <svg viewBox="0 0 800 450" style="width: 100%; height: 100%;">
-              <rect fill="#000" width="800" height="450"/>
-              <rect x="50" y="50" width="200" height="350" rx="12" fill="none" stroke="#22C55E" stroke-width="2" opacity="0.6"/>
-              <text x="150" y="240" text-anchor="middle" fill="#22C55E" font-size="14" font-family="monospace">畅通</text>
-              <rect x="300" y="50" width="200" height="350" rx="12" fill="none" stroke="#F59E0B" stroke-width="2" opacity="0.6"/>
-              <text x="400" y="240" text-anchor="middle" fill="#F59E0B" font-size="14" font-family="monospace">缓行</text>
-              <rect x="550" y="50" width="200" height="350" rx="12" fill="none" stroke="#EF4444" stroke-width="2" opacity="0.6"/>
-              <text x="650" y="240" text-anchor="middle" fill="#EF4444" font-size="14" font-family="monospace">拥堵</text>
-            </svg>
-          </div>
-
-          <div class="monitor-screen" data-hud="CAM-03 / NO-PARK ZONE / 24FPS / ALERT">
-            <div class="monitor-label">禁停监控 - 实时画面</div>
-            <svg viewBox="0 0 800 450" style="width: 100%; height: 100%;">
-              <rect fill="#000" width="800" height="450"/>
-              <rect x="100" y="100" width="600" height="250" rx="16" fill="none" stroke="#F59E0B" stroke-width="3" stroke-dasharray="15 10" opacity="0.7"/>
-              <text x="400" y="230" text-anchor="middle" fill="#F59E0B" font-size="18" font-family="monospace" font-weight="bold">禁停区域</text>
-              <rect x="250" y="180" width="80" height="50" rx="8" fill="#DC2626" opacity="0.7" stroke="#EF4444" stroke-width="2"/>
-              <text x="290" y="210" text-anchor="middle" fill="#EF4444" font-size="11" font-family="monospace" font-weight="bold">ALERT</text>
+        <div class="monitor-wall heatmap-only">
+          <div
+            class="monitor-screen heatmap-screen"
+            :data-hud="`CAM-02 / FRAME ${currentFrameHeatmap.frameId || '--'} / VEH ${heatmapVehicles.length} / SCORE ${currentFrameHeatmap.densityScore || 0}`"
+          >
+            <div class="monitor-label">拥堵监测 - 当前帧热力图</div>
+            <div class="heatmap-readout" :class="heatmapStatusClass">
+              <span>{{ currentFrameHeatmap.densityLevel || '无数据' }}</span>
+              <strong>{{ currentFrameHeatmap.densityScore || 0 }}</strong>
+            </div>
+            <svg viewBox="0 0 800 450" class="heatmap-svg">
+              <defs>
+                <radialGradient id="heatLow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#22C55E" stop-opacity="0.72"/>
+                  <stop offset="45%" stop-color="#22C55E" stop-opacity="0.28"/>
+                  <stop offset="100%" stop-color="#22C55E" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="heatMid" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.82"/>
+                  <stop offset="48%" stop-color="#F59E0B" stop-opacity="0.34"/>
+                  <stop offset="100%" stop-color="#F59E0B" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="heatHot" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#EF4444" stop-opacity="0.90"/>
+                  <stop offset="42%" stop-color="#F97316" stop-opacity="0.46"/>
+                  <stop offset="100%" stop-color="#EF4444" stop-opacity="0"/>
+                </radialGradient>
+                <linearGradient id="heatRoad" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#06111f"/>
+                  <stop offset="100%" stop-color="#010409"/>
+                </linearGradient>
+              </defs>
+              <rect fill="url(#heatRoad)" width="800" height="450"/>
+              <g class="heatmap-road-grid">
+                <path d="M120 450 L330 0"/>
+                <path d="M680 450 L470 0"/>
+                <path d="M285 450 L385 0"/>
+                <path d="M515 450 L415 0"/>
+                <line x1="400" y1="0" x2="400" y2="450"/>
+                <line x1="0" y1="340" x2="800" y2="340"/>
+                <line x1="0" y1="240" x2="800" y2="240"/>
+                <line x1="0" y1="140" x2="800" y2="140"/>
+              </g>
+              <g class="heat-zones">
+                <circle
+                  v-for="vehicle in heatmapVehicles"
+                  :key="`heat-${vehicle.id}`"
+                  :cx="vehicle.cx"
+                  :cy="vehicle.cy"
+                  :r="vehicle.radius"
+                  :fill="vehicle.intensity > 0.68 ? 'url(#heatHot)' : vehicle.intensity > 0.52 ? 'url(#heatMid)' : 'url(#heatLow)'"
+                  :opacity="vehicle.intensity"
+                />
+              </g>
+              <g class="vehicle-boxes">
+                <g v-for="vehicle in heatmapVehicles" :key="`box-${vehicle.id}`">
+                  <rect
+                    :x="vehicle.x"
+                    :y="vehicle.y"
+                    :width="vehicle.w"
+                    :height="vehicle.h"
+                    rx="7"
+                  />
+                  <text :x="vehicle.cx" :y="Math.max(vehicle.y - 8, 24)" text-anchor="middle">
+                    {{ vehicle.plateNumber || vehicle.vehicleType }}
+                  </text>
+                </g>
+              </g>
+              <text v-if="heatmapVehicles.length === 0" x="400" y="232" text-anchor="middle" class="heatmap-empty">
+                当前帧暂无车辆坐标
+              </text>
             </svg>
           </div>
         </div>
-
         <!-- 识别结果表格 -->
         <div class="data-matrix">
           <table class="data-table">
@@ -220,11 +262,121 @@ const handleRefresh = () => {
       </div>
 
       <!-- 监控中心 -->
-      <div v-else-if="currentView === 'monitor'" class="content-grid">
-        <div class="monitor-wall">
-          <div v-for="i in 6" :key="i" class="monitor-screen monitor-placeholder" :data-hud="`CAM-0${i} / AI VISION / STANDBY`">
-            <div class="monitor-label">实时监控 - {{ i }}</div>
+      <div v-else-if="currentView === 'monitor'" class="content-grid monitor-stack">
+        <div
+          class="monitor-screen frame-screen"
+          :data-hud="`CAM-02 / FRAME ${currentFrameHeatmap.frameId || '--'} / RAW VIEW / VEH ${heatmapVehicles.length}`"
+        >
+          <div class="monitor-label">实时监控 - 当前帧正常画面</div>
+          <svg viewBox="0 0 800 450" class="heatmap-svg">
+            <defs>
+              <linearGradient id="rawRoad" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stop-color="#07111f"/>
+                <stop offset="100%" stop-color="#02070d"/>
+              </linearGradient>
+            </defs>
+            <rect fill="url(#rawRoad)" width="800" height="450"/>
+            <g class="heatmap-road-grid raw-grid">
+              <path d="M120 450 L330 0"/>
+              <path d="M680 450 L470 0"/>
+              <path d="M285 450 L385 0"/>
+              <path d="M515 450 L415 0"/>
+              <line x1="400" y1="0" x2="400" y2="450"/>
+              <line x1="0" y1="340" x2="800" y2="340"/>
+              <line x1="0" y1="240" x2="800" y2="240"/>
+              <line x1="0" y1="140" x2="800" y2="140"/>
+            </g>
+            <g class="raw-vehicles">
+              <g v-for="vehicle in heatmapVehicles" :key="`raw-${vehicle.id}`">
+                <rect
+                  :x="vehicle.x"
+                  :y="vehicle.y"
+                  :width="vehicle.w"
+                  :height="vehicle.h"
+                  rx="7"
+                />
+                <text :x="vehicle.cx" :y="Math.max(vehicle.y - 8, 24)" text-anchor="middle">
+                  {{ vehicle.plateNumber || vehicle.vehicleType }}
+                </text>
+              </g>
+            </g>
+            <text v-if="heatmapVehicles.length === 0" x="400" y="232" text-anchor="middle" class="heatmap-empty">
+              当前帧暂无车辆坐标
+            </text>
+          </svg>
+        </div>
+
+        <div
+          class="monitor-screen heatmap-screen"
+          :data-hud="`CAM-02 / FRAME ${currentFrameHeatmap.frameId || '--'} / HEATMAP / SCORE ${currentFrameHeatmap.densityScore || 0}`"
+        >
+          <div class="monitor-label">实时监控 - 当前帧拥堵热力图</div>
+          <div class="heatmap-readout" :class="heatmapStatusClass">
+            <span>{{ currentFrameHeatmap.densityLevel || '无数据' }}</span>
+            <strong>{{ currentFrameHeatmap.densityScore || 0 }}</strong>
           </div>
+          <svg viewBox="0 0 800 450" class="heatmap-svg">
+            <defs>
+              <radialGradient id="monitorHeatLow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#22C55E" stop-opacity="0.72"/>
+                <stop offset="45%" stop-color="#22C55E" stop-opacity="0.28"/>
+                <stop offset="100%" stop-color="#22C55E" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="monitorHeatMid" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.82"/>
+                <stop offset="48%" stop-color="#F59E0B" stop-opacity="0.34"/>
+                <stop offset="100%" stop-color="#F59E0B" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="monitorHeatHot" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#EF4444" stop-opacity="0.90"/>
+                <stop offset="42%" stop-color="#F97316" stop-opacity="0.46"/>
+                <stop offset="100%" stop-color="#EF4444" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="monitorHeatRoad" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stop-color="#06111f"/>
+                <stop offset="100%" stop-color="#010409"/>
+              </linearGradient>
+            </defs>
+            <rect fill="url(#monitorHeatRoad)" width="800" height="450"/>
+            <g class="heatmap-road-grid">
+              <path d="M120 450 L330 0"/>
+              <path d="M680 450 L470 0"/>
+              <path d="M285 450 L385 0"/>
+              <path d="M515 450 L415 0"/>
+              <line x1="400" y1="0" x2="400" y2="450"/>
+              <line x1="0" y1="340" x2="800" y2="340"/>
+              <line x1="0" y1="240" x2="800" y2="240"/>
+              <line x1="0" y1="140" x2="800" y2="140"/>
+            </g>
+            <g class="heat-zones">
+              <circle
+                v-for="vehicle in heatmapVehicles"
+                :key="`monitor-heat-${vehicle.id}`"
+                :cx="vehicle.cx"
+                :cy="vehicle.cy"
+                :r="vehicle.radius"
+                :fill="vehicle.intensity > 0.68 ? 'url(#monitorHeatHot)' : vehicle.intensity > 0.52 ? 'url(#monitorHeatMid)' : 'url(#monitorHeatLow)'"
+                :opacity="vehicle.intensity"
+              />
+            </g>
+            <g class="vehicle-boxes">
+              <g v-for="vehicle in heatmapVehicles" :key="`monitor-box-${vehicle.id}`">
+                <rect
+                  :x="vehicle.x"
+                  :y="vehicle.y"
+                  :width="vehicle.w"
+                  :height="vehicle.h"
+                  rx="7"
+                />
+                <text :x="vehicle.cx" :y="Math.max(vehicle.y - 8, 24)" text-anchor="middle">
+                  {{ vehicle.plateNumber || vehicle.vehicleType }}
+                </text>
+              </g>
+            </g>
+            <text v-if="heatmapVehicles.length === 0" x="400" y="232" text-anchor="middle" class="heatmap-empty">
+              当前帧暂无车辆坐标
+            </text>
+          </svg>
         </div>
       </div>
 

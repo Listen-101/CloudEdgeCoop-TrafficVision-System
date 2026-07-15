@@ -60,11 +60,26 @@ export const MOCK_DATA = {
   ],
 
   recognitionResults: [
-    { deviceId: 'EDGE-CAM-01', plateNumber: '粤B·A7K29', vehicleType: '轿车', alertType: null, createTime: '10:24:11' },
-    { deviceId: 'EDGE-CAM-02', plateNumber: '粤B·C9M21', vehicleType: '轿车', alertType: '非白名单', createTime: '10:19:36' },
-    { deviceId: 'EDGE-CAM-01', plateNumber: '粤A·8F230', vehicleType: '轿车', alertType: null, createTime: '10:12:04' },
-    { deviceId: 'EDGE-GATE-01', plateNumber: '粤A·3D512', vehicleType: '卡车', alertType: null, createTime: '10:05:38' }
+    { deviceId: 'EDGE-CAM-01', frameId: 1042, plateNumber: '粤B·A7K29', vehicleType: '轿车', alertType: null, confidence: 0.94, bbox: [168, 154, 92, 54], createTime: '10:24:11' },
+    { deviceId: 'EDGE-CAM-01', frameId: 1042, plateNumber: '粤B·C9M21', vehicleType: '轿车', alertType: '非白名单', confidence: 0.91, bbox: [286, 188, 98, 58], createTime: '10:24:11' },
+    { deviceId: 'EDGE-CAM-01', frameId: 1042, plateNumber: '粤A·8F230', vehicleType: '轿车', alertType: null, confidence: 0.89, bbox: [406, 216, 112, 64], createTime: '10:24:11' },
+    { deviceId: 'EDGE-CAM-01', frameId: 1042, plateNumber: '粤A·3D512', vehicleType: '卡车', alertType: null, confidence: 0.87, bbox: [552, 248, 138, 72], createTime: '10:24:11' }
   ],
+
+  currentFrameHeatmap: {
+    frameId: 1042,
+    deviceId: 'EDGE-CAM-01',
+    fileName: 'mock-current-frame.jpg',
+    updatedAt: '10:24:11',
+    densityScore: 63,
+    densityLevel: '缓行',
+    vehicles: [
+      { id: 'mock-1', x: 168, y: 154, w: 92, h: 54, cx: 214, cy: 181, radius: 82, intensity: 0.48, vehicleType: '轿车', plateNumber: '粤B·A7K29', confidence: 0.94 },
+      { id: 'mock-2', x: 286, y: 188, w: 98, h: 58, cx: 335, cy: 217, radius: 88, intensity: 0.54, vehicleType: '轿车', plateNumber: '粤B·C9M21', confidence: 0.91 },
+      { id: 'mock-3', x: 406, y: 216, w: 112, h: 64, cx: 462, cy: 248, radius: 96, intensity: 0.62, vehicleType: '轿车', plateNumber: '粤A·8F230', confidence: 0.89 },
+      { id: 'mock-4', x: 552, y: 248, w: 138, h: 72, cx: 621, cy: 284, radius: 110, intensity: 0.72, vehicleType: '卡车', plateNumber: '粤A·3D512', confidence: 0.87 }
+    ]
+  },
 
   alerts: [
     { type: '禁停超时', scene: '禁停监控', level: 'alert', status: 'active', time: '10:24:18', plateNumber: 'CAR-03' },
